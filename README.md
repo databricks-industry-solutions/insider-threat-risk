@@ -1,22 +1,26 @@
-![image](https://raw.githubusercontent.com/databricks-industry-solutions/.github/main/profile/solacc_logo_wide.png)
+![image](https://github.com/lipyeowlim/public/raw/main/img/logo/databricks_cyber_logo_v1.png)
 
 [![CLOUD](https://img.shields.io/badge/CLOUD-ALL-blue?logo=googlecloud&style=for-the-badge)](https://cloud.google.com/databricks)
 [![POC](https://img.shields.io/badge/POC-10_days-green?style=for-the-badge)](https://databricks.com/try-databricks)
 
-## Business Problem
-<List of the business use case the solution accelerator address>
+# Insider Threat Detection & Risk Scoring
 
-## Scope
-<How we expect the user to use this content>
+Contact Author: <lipyeow.lim@databricks.com>
 
-___
-<john.doe@databricks.com>
+## Use Cases
 
-___
+* Detect insider data exfiltration threat using per-user anomaly detection models
+* Risk scoring of data exfiltration likelihood of each user
 
+## Reference Architecture
 
 IMAGE TO REFERENCE ARCHITECTURE
 
+## Technical Overview
+
+* Ingest different data sets (file, email, web, print) into the lakehouse
+* Create baseline models for each user and each data source (exfiltration modality)
+* Fuse different signals to produce a risk score
 ___
 
 &copy; 2022 Databricks, Inc. All rights reserved. The source in this notebook is provided subject to the Databricks License [https://databricks.com/db-license-source].  All included or referenced third party libraries are subject to the licenses set forth below.
@@ -39,7 +43,6 @@ To start using a solution accelerator in Databricks simply follow these steps:
 4. You might want to modify the samples in the solution accelerator to your need, collaborate with other users and run the code samples against your own data. To do so start by changing the Git remote of your repository  to your organization’s repository vs using our samples repository (learn more). You can now commit and push code, collaborate with other user’s via Git and follow your organization’s processes for code development.
 
 The cost associated with running the accelerator is the user's responsibility.
-
 
 ## Project support 
 
