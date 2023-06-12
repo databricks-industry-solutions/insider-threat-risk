@@ -13,7 +13,7 @@
 
 # COMMAND ----------
 
-# MAGIC %fs ls /tmp/lipyeow_insider
+# MAGIC %run ./config/notebook_config
 
 # COMMAND ----------
 
@@ -32,17 +32,6 @@ import collections
 import csv
 import os
 
-def generate_insert_stmt(db, table_name, rows):
-  if len(rows) == 0:
-    return ""
-  tuples = []
-  for i in range(len(rows)):
-    r = [ f"'{x}'" for x in rows[i] ]
-    tuples.append( "\n(" + ",".join(r) + ")" )
-  ins = f"insert into {db}.{table_name} values { ','.join(tuples)}"
-  return ins
-
-
 # schema: name, email, userid
 def generate_user_tuple(company="xyz.com"):
   user = []
@@ -56,18 +45,18 @@ def simulate_user_activity(cfg):
   # open csv output files
   fh = {}
   wh = {}
-  for data_type in cfg["tables"].keys():
-    f = open("/dbfs/tmp/lipyeow_insider/" + data_type + ".csv", "w")
+  for data_type in cfg["schemas"].keys():
+    csv_fname = os.path.join(cfg["tmpdir"], data_type + ".csv")
+    f = open(csv_fname , "w")
     fh[data_type] = f
     wh[data_type] = csv.writer(f)
-    #wh[data_type].writerow(cfg["headers"][data_type])
 
   cur_ts = cfg["start_ts"]
   while( cur_ts < cfg["end_ts"] ):
     next_ts = cur_ts + timedelta(days=cfg["batch_size_days"])
     print(f"simulating for batch time period {cur_ts.isoformat()} - {next_ts.isoformat()}")
     batch_data = simulate_user_activity_one_batch(cfg, cur_ts, next_ts, timedelta(minutes=cfg["sim_unit_min"]))
-    for data_type in cfg["tables"].keys():
+    for data_type in cfg["schemas"].keys():
       print(f"{data_type} : {len(batch_data[data_type])}")
       for r in batch_data[data_type]:
         wh[data_type].writerow(r)
@@ -76,24 +65,10 @@ def simulate_user_activity(cfg):
   for data_type, f in fh.items():
     f.close()
 
-# user activity simulation
-def simulate_user_activity_old(cfg):
-  cur_ts = cfg["start_ts"]
-  while( cur_ts < cfg["end_ts"] ):
-    next_ts = cur_ts + timedelta(days=cfg["batch_size_days"])
-    print(f"simulating for batch time period {cur_ts.isoformat()} - {next_ts.isoformat()}")
-    batch_data = simulate_user_activity_one_batch(cfg, cur_ts, next_ts, timedelta(minutes=cfg["sim_unit_min"]))
-    for data_type in cfg["tables"].keys():
-      stmt = generate_insert_stmt(cfg["db"], data_type, batch_data[data_type])
-      print(f"{data_type} : {len(batch_data[data_type])}")
-      #print(stmt)
-      spark.sql(stmt)
-    cur_ts = next_ts
-
 def simulate_user_activity_one_batch(cfg, batch_start_ts, batch_end_ts, sim_timedelta):
   # init data to hold data for one batch in memory on driver node
   data = {}
-  for data_type in cfg["tables"].keys():
+  for data_type in cfg["schemas"].keys():
     data[data_type] = []
   # for each day in time period
   cur_ts = batch_start_ts
@@ -227,7 +202,7 @@ def generate_print_tuple(cfg, start_ts, end_ts, userid):
 
 # DBTITLE 1,Define the schemas for the data
 
-fileschema = StructType()\
+file_schema = StructType()\
   .add("ts", TimestampType(), True)\
   .add("userid", StringType(), True)\
   .add("pc", StringType(), True)\
@@ -237,7 +212,7 @@ fileschema = StructType()\
   .add("from_media", StringType(), True)\
   .add("file_size", LongType(), True)
 
-emailschema = StructType()\
+email_schema = StructType()\
   .add("ts", TimestampType(), True)\
   .add("userid", StringType(), True)\
   .add("pc", StringType(), True)\
@@ -249,7 +224,7 @@ emailschema = StructType()\
   .add("email_size", LongType(), True)\
   .add("attachment_size", LongType(), True)
 
-webschema = StructType()\
+web_schema = StructType()\
   .add("ts", TimestampType(), True)\
   .add("userid", StringType(), True)\
   .add("pc", StringType(), True)\
@@ -257,7 +232,7 @@ webschema = StructType()\
   .add("activity", StringType(), True)\
   .add("size_in_bytes", LongType(), True)
 
-printschema = StructType()\
+print_schema = StructType()\
   .add("ts", TimestampType(), True)\
   .add("userid", StringType(), True)\
   .add("pc", StringType(), True)\
@@ -274,26 +249,12 @@ fake = Faker()
 Faker.seed(0)
 random.seed(1)
 
-cfg={}
-cfg["db"] = "lipyeow_insider"
 cfg["tmpdir"] = f"/dbfs/tmp/{cfg['db']}"
-cfg["tables"] = {
-  "file": f"create table if not exists {cfg['db']}.file(ts timestamp, userid string, pc string, filename string, activity string, to_media string, from_media string, file_size int)",
-  "email": f"create table if not exists {cfg['db']}.email(ts timestamp, userid string, pc string, to string, cc string, bcc string, from string, activity string, email_size int, attachment_size int)",
-  "web": f"create table if not exists {cfg['db']}.web(ts timestamp, userid string, pc string, url string, activity string, size_in_bytes int)",
-  "print": f"create table if not exists {cfg['db']}.print(ts timestamp, userid string, pc string, printer string, document_name string, activity string, print_size int)"
-}
-cfg["headers"] = {
-  "file": ("ts", "userid", "pc", "filename", "activity", "to_media", "from_media", "file_size"),
-  "email": ("ts", "userid", "pc", "to", "cc", "bcc", "from", "activity", "email_size", "attachment_size"),
-  "web": ("ts", "userid", "pc", "url", "activity", "size_in_bytes"),
-  "print": ("ts", "userid", "pc", "printer", "document_name", "activity", "print_size")
-}
 cfg["schemas"] = {
-  "file": fileschema,
-  "email": emailschema,
-  "web": webschema,
-  "print": printschema
+  "file": file_schema,
+  "email": email_schema,
+  "web": web_schema,
+  "print": print_schema
 }
 cfg["user_cnt"] = 100
 users = []  
@@ -319,8 +280,6 @@ cfg["end_ts"] = datetime(2021, 1, 1, 0, tzinfo=timezone.utc)
 cfg["sim_unit_min"] = 60
 cfg["batch_size_days"] = 10
 
-
-
 # COMMAND ----------
 
 # DBTITLE 1,Generate the data as CSV files on DBFS
@@ -328,6 +287,7 @@ cfg["batch_size_days"] = 10
 os.makedirs(cfg["tmpdir"], exist_ok=True)
 spark.sql(f"drop database if exists {cfg['db']} cascade")
 spark.sql(f"create database if not exists {cfg['db']}")
+spark.sql(f"use schema {cfg['db']}")
 
 simulate_user_activity(cfg)
 
@@ -335,11 +295,10 @@ simulate_user_activity(cfg)
 # COMMAND ----------
 
 # DBTITLE 1,Load CSV files into delta tables
-for data_type in cfg["tables"].keys():
+for data_type in cfg["schemas"].keys():
     tablename = cfg["db"] + "." + data_type
-    #spark.sql(f"drop table if exists {tablename}")
     csvfile = os.path.join("/tmp",cfg["db"], data_type + ".csv")
-    df = spark.read.format("csv").option("header", "true").schema(cfg["schemas"][data_type]).load(csvfile)
+    df = spark.read.format("csv").option("header", "false").schema(cfg["schemas"][data_type]).load(csvfile)
     df.write.option("mergeSchema", "true").mode("overwrite").saveAsTable(tablename)
 
 # COMMAND ----------
@@ -347,21 +306,21 @@ for data_type in cfg["tables"].keys():
 # MAGIC %sql
 # MAGIC
 # MAGIC select 'email' as tablename, count(*) as cnt
-# MAGIC from lipyeow_insider.email
+# MAGIC from email
 # MAGIC union all
 # MAGIC select 'web' as tablename, count(*) as cnt
-# MAGIC from lipyeow_insider.web
+# MAGIC from web
 # MAGIC union all 
 # MAGIC select 'print' as tablename, count(*) as cnt
-# MAGIC from lipyeow_insider.print
+# MAGIC from print
 # MAGIC union all 
 # MAGIC select 'file' as tablename, count(*) as cnt
-# MAGIC from lipyeow_insider.file
+# MAGIC from file
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC select * from lipyeow_insider.email
+# MAGIC select * from email
 
 # COMMAND ----------
 
