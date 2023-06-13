@@ -26,6 +26,8 @@
 # MAGIC * The anomaly detection will use the previous years (tumbling window) baselines. For example, all the weekly profile for 2023 will be compared against the baselines for 2022.
 # MAGIC * We do fusion of the anomalies in multiple modalities for an individual to mitigate threat actors masking their tracks with spreading their exfiltration task across different modalities.
 # MAGIC
+# MAGIC You have a choice of using either views or materialized views/tables for the baselines. Materialized views will be more performant at query time at the cost of table creation and maintenance. We use views below to demonstrate the flexibility and scalability of the platform.
+# MAGIC
 # MAGIC ## Background on the Gaussian or Normal Distribution
 # MAGIC
 # MAGIC * Many uni-modal & symmetric real world data distributions can be approximated by the Normal distribution. 
@@ -52,10 +54,11 @@ spark.sql(f"use schema {cfg['db']}")
 
 # MAGIC %md
 # MAGIC
-# MAGIC # Creating the views for the weekly profiles
+# MAGIC # File copies to external media
 
 # COMMAND ----------
 
+# DBTITLE 1,Create the view for weekly profiles
 # MAGIC %sql
 # MAGIC
 # MAGIC drop view if exists v_weekly_file;
@@ -65,59 +68,6 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC from file
 # MAGIC where to_media = 'True' and activity in ('write', 'copy')
 # MAGIC group by userid, ts_year, ts_week;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC
-# MAGIC drop view if exists v_weekly_email;
-# MAGIC create view if not exists v_weekly_email 
-# MAGIC as
-# MAGIC select userid, date_trunc('YEAR', ts) as ts_year, date_trunc('WEEK', ts) as ts_week, sum(email_size + attachment_size) as weekly_email_size
-# MAGIC from 
-# MAGIC   (
-# MAGIC     select *, explode(split(`to`, ';')) as recv
-# MAGIC     from email
-# MAGIC   )
-# MAGIC where not recv like '%xyz.com%'
-# MAGIC group by userid, ts_year, ts_week;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC
-# MAGIC drop view if exists v_weekly_http;
-# MAGIC create view if not exists v_weekly_http 
-# MAGIC as
-# MAGIC select userid, date_trunc('YEAR', ts) as ts_year, date_trunc('WEEK', ts) as ts_week, sum(size_in_bytes) as weekly_web_size
-# MAGIC from web
-# MAGIC where activity in ('upload')
-# MAGIC group by userid, ts_year, ts_week
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC
-# MAGIC drop view if exists v_weekly_print;
-# MAGIC create view if not exists v_weekly_print 
-# MAGIC as
-# MAGIC select userid, date_trunc('YEAR', ts) as ts_year, date_trunc('WEEK', ts) as ts_week, sum(print_size) as weekly_print_size
-# MAGIC from print
-# MAGIC where activity in ('print')
-# MAGIC group by userid, ts_year, ts_week;
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC
-# MAGIC # Creating the baselines for each individual for each exfiltration modality
-# MAGIC
-# MAGIC You have a choice of using either views or materialized views/tables for the baselines. Materialized views will be more performant at query time at the cost of table creation and maintenance. We use views below to demonstrate the flexibility and scalability of the platform.
-# MAGIC
-
-# COMMAND ----------
-
-spark.sql(f"use schema {cfg['db']}")
 
 # COMMAND ----------
 
@@ -133,76 +83,12 @@ spark.sql(f"use schema {cfg['db']}")
 
 # COMMAND ----------
 
+# DBTITLE 1,Sanity check the baselines
 # MAGIC %sql
 # MAGIC
 # MAGIC select *
 # MAGIC from v_file_baselines
 # MAGIC order by userid, ts_year;
-
-# COMMAND ----------
-
-# DBTITLE 1,Baselines for external-outbound email attachment sizes
-# MAGIC %sql
-# MAGIC
-# MAGIC drop view if exists v_email_baselines;
-# MAGIC create view if not exists v_email_baselines 
-# MAGIC as
-# MAGIC select userid, ts_year, avg(weekly_email_size) as avg_size, min(weekly_email_size) as min_size, max(weekly_email_size) as max_size, stddev(weekly_email_size) as std_dev
-# MAGIC from v_weekly_email
-# MAGIC group by userid, ts_year
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC
-# MAGIC select *
-# MAGIC from v_email_baselines
-# MAGIC order by userid, ts_year;
-
-# COMMAND ----------
-
-# DBTITLE 1,Baselines for HTTP upload events
-# MAGIC %sql
-# MAGIC
-# MAGIC drop view if exists v_http_baselines;
-# MAGIC create view if not exists v_http_baselines 
-# MAGIC as
-# MAGIC select userid, ts_year, avg(weekly_web_size) as avg_size, min(weekly_web_size) as min_size, max(weekly_web_size) as max_size, stddev(weekly_web_size) as std_dev
-# MAGIC from v_weekly_http
-# MAGIC group by userid, ts_year
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC
-# MAGIC select *
-# MAGIC from v_http_baselines
-# MAGIC order by userid, ts_year;
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC
-# MAGIC drop view if exists v_print_baselines;
-# MAGIC create view if not exists v_print_baselines 
-# MAGIC as
-# MAGIC select userid, ts_year, avg(weekly_print_size) as avg_size, min(weekly_print_size) as min_size, max(weekly_print_size) as max_size, stddev(weekly_print_size) as std_dev
-# MAGIC from v_weekly_print
-# MAGIC group by userid, ts_year
-
-# COMMAND ----------
-
-# MAGIC %sql
-# MAGIC
-# MAGIC select *
-# MAGIC from v_print_baselines
-# MAGIC order by userid, ts_year
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC
-# MAGIC # Checking the data for anomalies
 
 # COMMAND ----------
 
@@ -223,14 +109,60 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC       and f.ts_year >= '2020-01-01T00:00:00.000+0000'
 # MAGIC )
 # MAGIC group by userid;
+# MAGIC -- the ts_year filter is to ensure there enough data for a baseline
 
 # COMMAND ----------
 
+# DBTITLE 1,Sanity check the anomalies
 # MAGIC %sql
 # MAGIC
 # MAGIC select *
 # MAGIC from v_file_anomalies
 # MAGIC order by anomaly_cnt desc
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+# MAGIC # Email
+
+# COMMAND ----------
+
+# DBTITLE 1,Create the view for weekly profiles
+# MAGIC %sql
+# MAGIC
+# MAGIC drop view if exists v_weekly_email;
+# MAGIC create view if not exists v_weekly_email 
+# MAGIC as
+# MAGIC select userid, date_trunc('YEAR', ts) as ts_year, date_trunc('WEEK', ts) as ts_week, sum(email_size + attachment_size) as weekly_email_size
+# MAGIC from 
+# MAGIC   (
+# MAGIC     select *, explode(split(`to`, ';')) as recv
+# MAGIC     from email
+# MAGIC   )
+# MAGIC where not recv like '%xyz.com%'
+# MAGIC group by userid, ts_year, ts_week;
+
+# COMMAND ----------
+
+# DBTITLE 1,Baselines for external-outbound email attachment sizes
+# MAGIC %sql
+# MAGIC
+# MAGIC drop view if exists v_email_baselines;
+# MAGIC create view if not exists v_email_baselines 
+# MAGIC as
+# MAGIC select userid, ts_year, avg(weekly_email_size) as avg_size, min(weekly_email_size) as min_size, max(weekly_email_size) as max_size, stddev(weekly_email_size) as std_dev
+# MAGIC from v_weekly_email
+# MAGIC group by userid, ts_year
+
+# COMMAND ----------
+
+# DBTITLE 1,Sanity check the baselines
+# MAGIC %sql
+# MAGIC
+# MAGIC select *
+# MAGIC from v_email_baselines
+# MAGIC order by userid, ts_year;
 
 # COMMAND ----------
 
@@ -255,11 +187,52 @@ spark.sql(f"use schema {cfg['db']}")
 
 # COMMAND ----------
 
+# DBTITLE 1,Sanity check the anomalies
 # MAGIC %sql
 # MAGIC
 # MAGIC select *
 # MAGIC from v_email_anomalies
 # MAGIC order by anomaly_cnt desc
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+# MAGIC # Web uploads
+
+# COMMAND ----------
+
+# DBTITLE 1,Create the view for weekly profiles
+# MAGIC %sql
+# MAGIC
+# MAGIC drop view if exists v_weekly_http;
+# MAGIC create view if not exists v_weekly_http 
+# MAGIC as
+# MAGIC select userid, date_trunc('YEAR', ts) as ts_year, date_trunc('WEEK', ts) as ts_week, sum(size_in_bytes) as weekly_web_size
+# MAGIC from web
+# MAGIC where activity in ('upload')
+# MAGIC group by userid, ts_year, ts_week
+
+# COMMAND ----------
+
+# DBTITLE 1,Baselines for HTTP upload events
+# MAGIC %sql
+# MAGIC
+# MAGIC drop view if exists v_http_baselines;
+# MAGIC create view if not exists v_http_baselines 
+# MAGIC as
+# MAGIC select userid, ts_year, avg(weekly_web_size) as avg_size, min(weekly_web_size) as min_size, max(weekly_web_size) as max_size, stddev(weekly_web_size) as std_dev
+# MAGIC from v_weekly_http
+# MAGIC group by userid, ts_year
+
+# COMMAND ----------
+
+# DBTITLE 1,Sanity check the baselines
+# MAGIC %sql
+# MAGIC
+# MAGIC select *
+# MAGIC from v_http_baselines
+# MAGIC order by userid, ts_year;
 
 # COMMAND ----------
 
@@ -276,12 +249,13 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC   select f.userid, f.ts_year, b.ts_year, f.ts_week, f.weekly_web_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
 # MAGIC   from v_weekly_http as f join v_http_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
 # MAGIC   where f.weekly_web_size > b.avg_size + 3*b.std_dev
-# MAGIC       and f.ts_year >= '2011-01-01T00:00:00.000+0000'
+# MAGIC       and f.ts_year >= '2020-01-01T00:00:00.000+0000'
 # MAGIC )
 # MAGIC group by userid;
 
 # COMMAND ----------
 
+# DBTITLE 1,Sanity check the anomalies
 # MAGIC %sql
 # MAGIC
 # MAGIC select *
@@ -290,7 +264,47 @@ spark.sql(f"use schema {cfg['db']}")
 
 # COMMAND ----------
 
-# DBTITLE 1,Print anomalies
+# MAGIC %md
+# MAGIC
+# MAGIC # Print to hardcopy
+
+# COMMAND ----------
+
+# DBTITLE 1,Create the view for weekly profiles
+# MAGIC %sql
+# MAGIC
+# MAGIC drop view if exists v_weekly_print;
+# MAGIC create view if not exists v_weekly_print 
+# MAGIC as
+# MAGIC select userid, date_trunc('YEAR', ts) as ts_year, date_trunc('WEEK', ts) as ts_week, sum(print_size) as weekly_print_size
+# MAGIC from print
+# MAGIC where activity in ('print')
+# MAGIC group by userid, ts_year, ts_week;
+
+# COMMAND ----------
+
+# DBTITLE 1,Baselines for print events
+# MAGIC %sql
+# MAGIC
+# MAGIC drop view if exists v_print_baselines;
+# MAGIC create view if not exists v_print_baselines 
+# MAGIC as
+# MAGIC select userid, ts_year, avg(weekly_print_size) as avg_size, min(weekly_print_size) as min_size, max(weekly_print_size) as max_size, stddev(weekly_print_size) as std_dev
+# MAGIC from v_weekly_print
+# MAGIC group by userid, ts_year
+
+# COMMAND ----------
+
+# DBTITLE 1,Sanity check the baselines
+# MAGIC %sql
+# MAGIC
+# MAGIC select *
+# MAGIC from v_print_baselines
+# MAGIC order by userid, ts_year
+
+# COMMAND ----------
+
+# DBTITLE 1,Print to hardcopy anomalies
 # MAGIC %sql
 # MAGIC
 # MAGIC drop view if exists v_print_anomalies;
@@ -303,12 +317,13 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC   select f.userid, f.ts_year, b.ts_year, f.ts_week, f.weekly_print_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
 # MAGIC   from v_weekly_print as f join v_print_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
 # MAGIC   where f.weekly_print_size > b.avg_size + 3*b.std_dev
-# MAGIC       and f.ts_year >= '2011-01-01T00:00:00.000+0000'
+# MAGIC       and f.ts_year >= '2020-01-01T00:00:00.000+0000'
 # MAGIC )
 # MAGIC group by userid;
 
 # COMMAND ----------
 
+# DBTITLE 1,Sanity check the anomalies
 # MAGIC %sql
 # MAGIC
 # MAGIC select *
@@ -323,6 +338,8 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC
 # MAGIC * This will help catch threat actors that try to spread their exfiltration load across multiple modalities
 # MAGIC * The weights will need to be tuned for the specific organizational environment
+# MAGIC * This scoring can be re-evaluated daily/weekly based on the entire history or using a window of historical data.
+# MAGIC * To evaluate based on a window of historical data, change the time filter in the view definitions for the anomaly detection to `f.ts_year >= now() - '6 months'::interval`
 
 # COMMAND ----------
 
