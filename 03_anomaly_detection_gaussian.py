@@ -12,6 +12,8 @@
 # MAGIC
 # MAGIC ![usecase_image](https://raw.githubusercontent.com/lipyeowlim/public/main/img/insider-threat/insider_threat_risk_gaussian.png)
 # MAGIC
+# MAGIC This solution accelerator will NOT cover the data ingestion and processing pipelines - it will assumed that the data at the silver level in the diagram above is already available.
+# MAGIC
 # MAGIC ## Assumptions
 # MAGIC * Data can be exfiltrated in multiple modalities: electronically (emails, http, etc.) or copied to removable media or printed to hardcopies
 # MAGIC * Every individual is different in their routine and usage patterns - we want individual profiles/models
