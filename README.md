@@ -14,7 +14,9 @@ Contact Author: <lipyeow.lim@databricks.com>
 
 ## Reference Architecture
 
-IMAGE TO REFERENCE ARCHITECTURE
+![usecase_image](https://raw.githubusercontent.com/lipyeowlim/public/main/img/insider-threat/insider_threat_risk_architecture.png)
+
+This solution accelerator will focus on the anomaly detection and risk scoring aspects and will not cover the data ingestion and pre-processing pipelines.
 
 ## Technical Overview
 
