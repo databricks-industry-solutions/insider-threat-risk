@@ -32,7 +32,7 @@ ___
 
 | library                                | description             | license    | source                                              |
 |----------------------------------------|-------------------------|------------|-----------------------------------------------------|
-| PyYAML                                 | Reading Yaml files      | MIT        | https://github.com/yaml/pyyaml                      |
+| Faker | Generate fake values | MIT        | https://github.com/joke2k/faker                     |
 
 ## Getting started
 
