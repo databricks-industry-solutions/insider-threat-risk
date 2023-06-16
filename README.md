@@ -20,8 +20,11 @@ This solution accelerator will focus on the anomaly detection and risk scoring a
 
 ## Technical Overview
 
-* Ingest different data sets (file, email, web, print) into the lakehouse
+* Generate & load different data sets (file, email, web, print) into the lakehouse
 * Create baseline models for each user and each data source (exfiltration modality)
+    * Statistical baselines using Normal distribution
+    * Anomaly detection using k-means (WIP 2023 Q3)
+* Anomaly detection using the baselines/models for each user and data source
 * Fuse different signals to produce a risk score
 ___
 
