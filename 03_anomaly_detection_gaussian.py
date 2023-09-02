@@ -3,16 +3,16 @@
 # MAGIC
 # MAGIC # Statistics-based Anomaly Detection for Insider Data Exfiltration
 # MAGIC
-# MAGIC There are two extreme cases in data exfiltration incidents:
-# MAGIC * Case 1: big data dump in a single event 
-# MAGIC * Case 2: small data dumps over multiple events over longer periods of time
+# MAGIC There are two different cases in data exfiltration incidents:
+# MAGIC * Case 1: big data dump in a single event ("loud and proud")
+# MAGIC * Case 2: small data dumps over multiple events over longer periods of time ("low and slow")
 # MAGIC
 # MAGIC Case 1 is obviously the easy case to detect and is well handled by the detection rules in current systems/technology.
 # MAGIC Case 2 is much hard to detect and is the focus of this notebook.
 # MAGIC
 # MAGIC ![usecase_image](https://raw.githubusercontent.com/lipyeowlim/public/main/img/insider-threat/insider_threat_risk_gaussian.png)
 # MAGIC
-# MAGIC This solution accelerator will NOT cover the data ingestion and processing pipelines - it will assumed that the data at the silver level in the diagram above is already available.
+# MAGIC This solution accelerator will NOT cover the data ingestion and processing pipelines - it will assume that the data at the silver level in the diagram above is already available.
 # MAGIC
 # MAGIC ## Assumptions
 # MAGIC * Data can be exfiltrated in multiple modalities: electronically (emails, http, etc.) or copied to removable media or printed to hardcopies
@@ -73,6 +73,13 @@ spark.sql(f"use schema {cfg['db']}")
 
 # COMMAND ----------
 
+# DBTITLE 1,Sanity check the weekly view
+# MAGIC %sql
+# MAGIC
+# MAGIC select * from v_weekly_file;
+
+# COMMAND ----------
+
 # DBTITLE 1,Baselines for removable media file write events
 # MAGIC %sql
 # MAGIC
@@ -101,16 +108,10 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC
 # MAGIC create view if not exists v_file_anomalies
 # MAGIC as
-# MAGIC select userid, 'file' as anomaly_type, count(*) as anomaly_cnt
-# MAGIC from
-# MAGIC (
-# MAGIC   select f.userid, f.ts_year, b.ts_year, f.ts_week, f.weekly_file_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
-# MAGIC   from v_weekly_file as f 
-# MAGIC     join v_file_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
-# MAGIC   where f.weekly_file_size > b.avg_size + 3*b.std_dev
-# MAGIC       and f.ts_year >= '2020-01-01T00:00:00.000+0000'
-# MAGIC )
-# MAGIC group by userid;
+# MAGIC select f.userid, f.ts_week, f.weekly_file_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
+# MAGIC from v_weekly_file as f 
+# MAGIC   join v_file_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
+# MAGIC where f.weekly_file_size > b.avg_size + 3*b.std_dev
 # MAGIC -- the ts_year filter is to ensure there enough data for a baseline
 
 # COMMAND ----------
@@ -120,7 +121,6 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC
 # MAGIC select *
 # MAGIC from v_file_anomalies
-# MAGIC order by anomaly_cnt desc
 
 # COMMAND ----------
 
@@ -175,16 +175,10 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC
 # MAGIC create view if not exists v_email_anomalies
 # MAGIC as
-# MAGIC select userid, 'email' as anomaly_type, count(*) as anomaly_cnt
-# MAGIC from
-# MAGIC (
-# MAGIC   select f.userid, f.ts_year, b.ts_year, f.ts_week, f.weekly_email_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
-# MAGIC   from v_weekly_email as f 
-# MAGIC     join v_email_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
-# MAGIC   where f.weekly_email_size > b.avg_size + 3*b.std_dev
-# MAGIC       and f.ts_year >= '2020-01-01T00:00:00.000+0000'
-# MAGIC )
-# MAGIC group by userid
+# MAGIC select f.userid, f.ts_week, f.weekly_email_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
+# MAGIC from v_weekly_email as f 
+# MAGIC   join v_email_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
+# MAGIC where f.weekly_email_size > b.avg_size + 3*b.std_dev
 # MAGIC
 
 # COMMAND ----------
@@ -194,7 +188,6 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC
 # MAGIC select *
 # MAGIC from v_email_anomalies
-# MAGIC order by anomaly_cnt desc
 
 # COMMAND ----------
 
@@ -245,15 +238,9 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC
 # MAGIC create view if not exists v_web_anomalies
 # MAGIC as
-# MAGIC select userid, 'web' as anomaly_type, count(*) as anomaly_cnt
-# MAGIC from
-# MAGIC (
-# MAGIC   select f.userid, f.ts_year, b.ts_year, f.ts_week, f.weekly_web_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
-# MAGIC   from v_weekly_http as f join v_http_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
-# MAGIC   where f.weekly_web_size > b.avg_size + 3*b.std_dev
-# MAGIC       and f.ts_year >= '2020-01-01T00:00:00.000+0000'
-# MAGIC )
-# MAGIC group by userid;
+# MAGIC select f.userid, f.ts_week, f.weekly_web_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
+# MAGIC from v_weekly_http as f join v_http_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
+# MAGIC where f.weekly_web_size > b.avg_size + 3*b.std_dev;
 
 # COMMAND ----------
 
@@ -261,8 +248,7 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC %sql
 # MAGIC
 # MAGIC select *
-# MAGIC from v_web_anomalies
-# MAGIC order by anomaly_cnt desc
+# MAGIC from v_web_anomalies;
 
 # COMMAND ----------
 
@@ -313,61 +299,79 @@ spark.sql(f"use schema {cfg['db']}")
 # MAGIC
 # MAGIC create view if not exists v_print_anomalies
 # MAGIC as
-# MAGIC select userid, 'print' as anomaly_type, count(*) as anomaly_cnt
-# MAGIC from
-# MAGIC (
-# MAGIC   select f.userid, f.ts_year, b.ts_year, f.ts_week, f.weekly_print_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
-# MAGIC   from v_weekly_print as f join v_print_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
-# MAGIC   where f.weekly_print_size > b.avg_size + 3*b.std_dev
-# MAGIC       and f.ts_year >= '2020-01-01T00:00:00.000+0000'
-# MAGIC )
-# MAGIC group by userid;
+# MAGIC select f.userid, f.ts_week, f.weekly_print_size, b.avg_size, b.std_dev, b.avg_size + 3*b.std_dev as threshold
+# MAGIC from v_weekly_print as f join v_print_baselines as b on f.userid = b.userid and b.ts_year = f.ts_year - '1 year'::interval
+# MAGIC where f.weekly_print_size > b.avg_size + 3*b.std_dev;
 
 # COMMAND ----------
 
 # DBTITLE 1,Sanity check the anomalies
 # MAGIC %sql
 # MAGIC
-# MAGIC select *
-# MAGIC from v_print_anomalies
-# MAGIC order by anomaly_cnt desc
+# MAGIC select * from v_print_anomalies;
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC
-# MAGIC # Fusion Insider Scoring
+# MAGIC # Fusion Insider Risk Scoring
 # MAGIC
 # MAGIC * This will help catch threat actors that try to spread their exfiltration load across multiple modalities
 # MAGIC * The weights will need to be tuned for the specific organizational environment
-# MAGIC * This scoring can be re-evaluated daily/weekly based on the entire history or using a window of historical data.
-# MAGIC * To evaluate based on a window of historical data, change the time filter in the view definitions for the anomaly detection to `f.ts_year >= now() - '6 months'::interval`
+# MAGIC * This risk scoring can be re-evaluated weekly based on the entire history or using a window of historical data. Risk scores above a threshold can trigger an alert to be triage by an analyst.
+# MAGIC * The following query evaluates the risk scores as of 2021-01-01 over a 6-month window.
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC
-# MAGIC select userid, anomaly_score, map_from_arrays(a_types, a_cnts) as details
-# MAGIC from (
-# MAGIC   select userid, sum(wt_anomaly_cnt) as anomaly_score, array_agg(anomaly_type) as a_types, array_agg(anomaly_cnt) as a_cnts
-# MAGIC   from
-# MAGIC   (
-# MAGIC     select userid, anomaly_type, anomaly_cnt, 1.0 * anomaly_cnt as wt_anomaly_cnt
-# MAGIC     from v_file_anomalies
-# MAGIC     union all
-# MAGIC     select userid, anomaly_type, anomaly_cnt, 0.3 * anomaly_cnt as wt_anomaly_cnt
-# MAGIC     from v_email_anomalies
-# MAGIC     union all
-# MAGIC     select userid, anomaly_type, anomaly_cnt, 0.5 * anomaly_cnt as wt_anomaly_cnt
-# MAGIC     from v_web_anomalies
-# MAGIC     union all
-# MAGIC     select userid, anomaly_type, anomaly_cnt, 0.5 * anomaly_cnt as wt_anomaly_cnt
-# MAGIC     from v_print_anomalies
-# MAGIC   )
-# MAGIC   group by userid
-# MAGIC   order by anomaly_score desc
-# MAGIC   limit 20
-# MAGIC )
+
+scoring_ts = '2021-01-01'
+scoring_window = '6 months'
+sql_str = f"""
+select userid, anomaly_score, map_from_arrays(a_types, a_cnts) as details
+from (
+  select userid, sum(wt_anomaly_cnt) as anomaly_score, array_agg(anomaly_type) as a_types, array_agg(anomaly_cnt) as a_cnts
+  from
+  (
+    select userid, anomaly_type, anomaly_cnt, 1.0 * anomaly_cnt as wt_anomaly_cnt
+    from ( 
+      select 'file' as anomaly_type, userid, count(*) as anomaly_cnt
+      from v_file_anomalies
+      where ts_week between '{scoring_ts}'::timestamp - '{scoring_window}'::interval and '{scoring_ts}'::timestamp
+      group by userid
+    )
+    union all
+    select userid, anomaly_type, anomaly_cnt, 0.3 * anomaly_cnt as wt_anomaly_cnt
+    from ( 
+      select 'email' as anomaly_type, userid, count(*) as anomaly_cnt
+      from v_email_anomalies
+      where ts_week between '{scoring_ts}'::timestamp - '{scoring_window}'::interval and '{scoring_ts}'::timestamp
+      group by userid
+    )
+    union all
+    select userid, anomaly_type, anomaly_cnt, 0.5 * anomaly_cnt as wt_anomaly_cnt
+    from ( 
+      select 'web' as anomaly_type, userid, count(*) as anomaly_cnt
+      from v_web_anomalies
+      where ts_week between '{scoring_ts}'::timestamp - '{scoring_window}'::interval and '{scoring_ts}'::timestamp
+      group by userid
+    )
+    union all
+    select userid, anomaly_type, anomaly_cnt, 0.5 * anomaly_cnt as wt_anomaly_cnt
+    from ( 
+      select 'print' as anomaly_type, userid, count(*) as anomaly_cnt
+      from v_print_anomalies
+      where ts_week between '{scoring_ts}'::timestamp - '{scoring_window}'::interval and '{scoring_ts}'::timestamp
+      group by userid
+    )
+  )
+  group by userid
+  order by anomaly_score desc
+  limit 20
+)
+"""
+
+df = spark.sql(sql_str)
+display(df)
 
 # COMMAND ----------
 
