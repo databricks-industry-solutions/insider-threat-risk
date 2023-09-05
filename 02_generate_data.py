@@ -1,10 +1,15 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC
-# MAGIC # Generate Data for the insider threat use case
+# MAGIC # Generate Data for the Insider Threat Use Case
 # MAGIC
 # MAGIC 1. generate a collection of users
-# MAGIC 2. for each user generate their different activities: email, file, http, print
+# MAGIC 2. for each user, simulate the user's activities (email, file, http, print) within a time unit based on the pre-configured probabilities in the `cfg` dictionary. Write the logs for the activities in batches to csv files in DBFS.
+# MAGIC 3. Load the csv files into delta tables
+# MAGIC
+# MAGIC The simulation used to generate the data is completely serial and runs in the driver node. Simulating 1000 users over two years took can take up to 100 minutes. The simulation can be easily parallelized, but is not the focus of this solution accelerator.
+# MAGIC
+# MAGIC All parameters associated with the data generation is controlled by the `cfg` dictionary. Modify the parameters in the `cfg` creation command below. 
 
 # COMMAND ----------
 

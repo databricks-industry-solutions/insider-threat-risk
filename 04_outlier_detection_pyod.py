@@ -12,7 +12,7 @@
 # MAGIC ## Technical Overview
 # MAGIC
 # MAGIC The general idea is to encapsulate the model training operation and the prediction operation into two user defined functions (UDFs) that can be called and parallelized by spark. 
-# MAGIC * The model update or training UDF will take a json representation of the training data as input and return a serialized string encoding of the PYOD model.
+# MAGIC * The model update or training UDF will take a json representation of the training data as input and return a serialized string encoding of the PyOD model.
 # MAGIC * The predict or inferencing UDF will take the serialized string of the model and the json representation of the observation feature vector and return the output of the PyOD prediction.
 # MAGIC
 # MAGIC ![usecase_image](https://raw.githubusercontent.com/lipyeowlim/public/main/img/insider-threat/per_user_pyod.png)
