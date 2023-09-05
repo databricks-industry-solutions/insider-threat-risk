@@ -5,13 +5,15 @@
 # MAGIC
 # MAGIC This notebook demonstrates how to extend the per user (per modality) anomaly model approach in `03_anomaly_detection_gaussian` to use all the outlier detection models available in the Python Outler Detection (PYOD) library.
 # MAGIC
-# MAGIC We will only show the logic for the `web` data source (that tracks user web upload activities) and leave the application of the same logic to the other data sources.
+# MAGIC We will only show the logic for the `web` data source (that tracks user web upload activities) and leave the application of the same logic to the other data sources. You will have the design choice of whether to collate the features from all data sources (or modality) into a single feature vector for a single PYOD model or use a separate PYOD model for each data source (or modality).
 # MAGIC
 # MAGIC ## Technical Overview
 # MAGIC
 # MAGIC The general idea is to encapsulate the model training operation and the prediction operation into two user defined functions (UDFs) that can be called and parallelized by spark. 
-# MAGIC * The model training UDF will take a json representation of the training data as input and return a serialized string encoding of the PYOD model.
-# MAGIC * The prediction UDF will take the serialized string of the model and the json representation of the observation vector and return the output of the PYOD prediction.
+# MAGIC * The model update or training UDF will take a json representation of the training data as input and return a serialized string encoding of the PYOD model.
+# MAGIC * The predict or inferencing UDF will take the serialized string of the model and the json representation of the observation feature vector and return the output of the PYOD prediction.
+# MAGIC
+# MAGIC ![usecase_image](https://raw.githubusercontent.com/lipyeowlim/public/main/img/insider-threat/per_user_pyod.png)
 # MAGIC
 # MAGIC ## Production Use
 # MAGIC
@@ -90,7 +92,7 @@ def pyod_predict(model_str, x_json_str):
   x_json = json.loads(x_json_str)
   x = np.array([x_json])
   y = model.predict(x)
-  return str(y[0])
+  return float(y[0])
 
 def sanity_tests():
   trg = [ [1, 2], [2,2], [3,2], [1.5, 2] ]
@@ -120,7 +122,7 @@ def sanity_tests():
   print(f"is_outlier = {str(y)}")
 
 spark.udf.register("pyod_fit", pyod_fit, StringType())
-spark.udf.register("pyod_predict", pyod_predict, StringType())
+spark.udf.register("pyod_predict", pyod_predict, FloatType())
 
 sanity_tests()
 
@@ -246,11 +248,11 @@ sanity_tests()
 # MAGIC %sql
 # MAGIC
 # MAGIC drop table if exists models;
-# MAGIC create table if not exists models (userid string, model_str string);
+# MAGIC create table if not exists models (userid string, modality string, model_str string);
 # MAGIC
 # MAGIC insert overwrite models
 # MAGIC (
-# MAGIC select userid, 
+# MAGIC select userid, 'web' as modality,
 # MAGIC   pyod_fit(x_train) as model_str
 # MAGIC from web_training
 # MAGIC where ts_year = '2019-01-01T00:00:00.000+0000'::timestamp
@@ -275,7 +277,7 @@ sanity_tests()
 # MAGIC
 # MAGIC select v.userid, v.ts_week, to_json(v.vec), pyod_predict(m.model_str, to_json(v.vec)) as is_outlier
 # MAGIC from web_weekly_vecs as v 
-# MAGIC   left outer join models as m on v.userid=m.userid  
+# MAGIC   left outer join models as m on v.userid=m.userid and m.modality = 'web'
 # MAGIC where ts_week > '2021-01-01'::date - '12 WEEKS'::interval
 
 # COMMAND ----------
