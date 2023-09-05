@@ -1,17 +1,19 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC
-# MAGIC # Per User Anomaly Detection Using Python Outlier Detection (PYOD) Library 
+# MAGIC # Per User Anomaly Detection Using Python Outlier Detection (PyOD) Library 
 # MAGIC
-# MAGIC This notebook demonstrates how to extend the per user (per modality) anomaly model approach in `03_anomaly_detection_gaussian` to use all the outlier detection models available in the Python Outler Detection (PYOD) library.
+# MAGIC This notebook demonstrates how to extend the per user (per modality) anomaly model approach in `03_anomaly_detection_gaussian` to use all the outlier detection models available in the [Python Outlier Detection (PyOD)](https://github.com/yzhao062/pyod) library.
 # MAGIC
-# MAGIC We will only show the logic for the `web` data source (that tracks user web upload activities) and leave the application of the same logic to the other data sources. You will have the design choice of whether to collate the features from all data sources (or modality) into a single feature vector for a single PYOD model or use a separate PYOD model for each data source (or modality).
+# MAGIC While this solution accelerator is grounded in the insider threat use case, these anomaly detection techniques can be applied to cloud security where the concept of the user is generalized to all types of *identities* including service principals & service accounts in cloud applications.
+# MAGIC
+# MAGIC We will only show the logic for the `web` data source (that tracks user web upload activities) and leave the application of the same logic to the other data sources. You will have the design choice of whether to collate the features from all data sources (or modality) into a single feature vector for a single PyOD model or use a separate PyOD model for each data source (or modality).
 # MAGIC
 # MAGIC ## Technical Overview
 # MAGIC
 # MAGIC The general idea is to encapsulate the model training operation and the prediction operation into two user defined functions (UDFs) that can be called and parallelized by spark. 
 # MAGIC * The model update or training UDF will take a json representation of the training data as input and return a serialized string encoding of the PYOD model.
-# MAGIC * The predict or inferencing UDF will take the serialized string of the model and the json representation of the observation feature vector and return the output of the PYOD prediction.
+# MAGIC * The predict or inferencing UDF will take the serialized string of the model and the json representation of the observation feature vector and return the output of the PyOD prediction.
 # MAGIC
 # MAGIC ![usecase_image](https://raw.githubusercontent.com/lipyeowlim/public/main/img/insider-threat/per_user_pyod.png)
 # MAGIC
@@ -27,8 +29,9 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install numpy==1.22
-# MAGIC %pip install pyod
+# you may have to tweak the version of numpy depending on the version of the Databricks runtime and the version of pyod.
+%pip install numpy==1.22
+%pip install pyod
 
 # COMMAND ----------
 
