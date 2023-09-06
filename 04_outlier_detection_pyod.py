@@ -5,7 +5,7 @@
 # MAGIC
 # MAGIC This notebook demonstrates how to extend the per user (per modality) anomaly model approach in `03_anomaly_detection_gaussian` to use all the outlier detection models available in the [Python Outlier Detection (PyOD)](https://github.com/yzhao062/pyod) library.
 # MAGIC
-# MAGIC While this solution accelerator is grounded in the insider threat use case, these anomaly detection techniques can be applied to cloud security where the concept of the user is generalized to all types of *identities* including service principals & service accounts in cloud applications.
+# MAGIC While this solution accelerator is grounded in the insider threat use case, these anomaly detection techniques can be applied to **cloud security** where the concept of the user is generalized to all types of *identities* including service principals & service accounts in cloud applications.
 # MAGIC
 # MAGIC We will only show the logic for the `web` data source (that tracks user web upload activities) and leave the application of the same logic to the other data sources. You will have the design choice of whether to collate the features from all data sources (or modality) into a single feature vector for a single PyOD model or use a separate PyOD model for each data source (or modality).
 # MAGIC
@@ -26,6 +26,10 @@
 # MAGIC The current notebook uses a time granularity of one week, so each feature vector covers the behavior for one week. The ideal frequency for inferencing is then one week, so that you do not have to pad or extrapolate the feature vector.
 # MAGIC
 # MAGIC Updating the model more frequently does not necessarily create more accurate detections. In fact, frequent updates run the risk of unintentionally incorporating malicious behavior into the baseline of the anomaly models.
+# MAGIC
+# MAGIC ## Prerequisite
+# MAGIC
+# MAGIC * Run the `02_generate_data.py` notebook to populate the tables required for this notebook.
 
 # COMMAND ----------
 

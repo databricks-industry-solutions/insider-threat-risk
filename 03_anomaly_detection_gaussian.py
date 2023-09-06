@@ -43,6 +43,10 @@
 # MAGIC * Anomaly alerting on a weekly cadence
 # MAGIC * Periodic hunts of users with anomalous/suspicious exfiltration behavior over a long time range
 # MAGIC
+# MAGIC ## Prerequisite
+# MAGIC
+# MAGIC * Run the `02_generate_data.py` notebook to populate the tables required for this notebook.
+# MAGIC
 
 # COMMAND ----------
 

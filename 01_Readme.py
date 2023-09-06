@@ -16,7 +16,7 @@
 # MAGIC   * Collusive Threats
 # MAGIC   * Third-Party Threats
 # MAGIC
-# MAGIC Note also that the lines between an insider threat and an external threats are blurring. External threats where an attacker steals the credentials of an insider and impersonates the insider will initially appear to the cybersecurity defenders like an "insider threat".
+# MAGIC Note also that the lines between an insider threat and an external threats are blurring. External threats where an attacker steals the credentials of an insider (or service account) and impersonates the insider (or service account) will initially appear to the cybersecurity defenders like an "insider threat". Hence, the approach in this solution accelerator can be applied to **cloud detection and response** where a service account or service principal might be compromised.
 # MAGIC
 # MAGIC Source: https://www.cisa.gov/topics/physical-security/insider-threat-mitigation/defining-insider-threats
 # MAGIC
@@ -25,7 +25,7 @@
 # MAGIC This solution accelerator leverages the scalability of the Databricks Lakehouse platform to perform user behavior modeling at the per user, per modality granularity and uses those models for anomaly detection.
 # MAGIC
 # MAGIC * `03_anomaly_detection_gaussian.py` uses a statistical gaussian model for each user-modality
-# MAGIC * (WIP) k-means-based model
+# MAGIC * `04_anomaly_detection_pyod.py` extends the approach in `03_anomaly_detection_gaussian.py` to any of the 40+ outlier detection algorithms available in the Python Outlier Detection (PyOD) library.
 # MAGIC
 
 # COMMAND ----------
