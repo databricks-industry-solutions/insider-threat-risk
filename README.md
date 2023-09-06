@@ -10,6 +10,7 @@ Contact Author: <lipyeow.lim@databricks.com>
 ## Use Cases
 
 * Detect insider data exfiltration threat using per-user anomaly detection models
+* Detect compromises of service principals or service accounts in cloud security
 * Risk scoring of data exfiltration likelihood of each user
 
 ## Reference Architecture
@@ -23,7 +24,7 @@ This solution accelerator will focus on the anomaly detection and risk scoring a
 * Generate & load different data sets (file, email, web, print) into the lakehouse
 * Create baseline models for each user and each data source (exfiltration modality)
     * Statistical baselines using Normal distribution
-    * Anomaly detection using k-means (WIP 2023 Q3)
+    * Anomaly detection using the 40+ algorithms from the Python Outlier Detection (PyOD) library.
 * Anomaly detection using the baselines/models for each user and data source
 * Fuse different signals to produce a risk score
 ___
@@ -33,6 +34,7 @@ ___
 | library                                | description             | license    | source                                              |
 |----------------------------------------|-------------------------|------------|-----------------------------------------------------|
 | Faker | Generate fake values | MIT        | https://github.com/joke2k/faker                     |
+| PyOD | Python Outlier Detection | BSD-2-Clause | https://github.com/yzhao062/pyod |
 
 ## Getting started
 
