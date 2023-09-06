@@ -85,6 +85,18 @@ job_json = {
                   "task_key": "02_generate_data"
                 }
               ]
+            },
+            {
+              "job_cluster_key": "sample_solacc_cluster",
+              "notebook_task": {
+                "notebook_path": f"04_outlier_detection_pyod"
+              },
+              "task_key": "04_outlier_detection_pyod",
+              "depends_on": [
+                {
+                  "task_key": "02_generate_data"
+                }
+              ]
             }
         ],
         "job_clusters": [
