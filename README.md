@@ -5,7 +5,7 @@
 
 # Insider Threat Detection & Risk Scoring
 
-Contact Author: <lipyeow.lim@databricks.com>
+Contact Author: <cybersecurity@databricks.com>
 
 ## Use Cases
 
